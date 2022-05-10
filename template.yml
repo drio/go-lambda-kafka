@@ -1,0 +1,107 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Resources:
+  Ping:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: dist/handler/ping
+      Runtime: go1.x
+      Tracing: Active
+      Events:
+        GetEvent:
+          Type: Api
+          Properties:
+            Path: /ping
+            Method: get
+
+  Producer:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: dist/handler/producer
+      Runtime: go1.x
+      Timeout: 300
+      Tracing: Active
+      Events:
+        GetEvent:
+          Type: Api
+          Properties:
+            Path: /producer/{value}
+            Method: get
+      Role: !GetAtt LambdaRole.Arn
+      VpcConfig:
+        SecurityGroupIds:
+          - sg-0c38fd03efcd3be5d
+        SubnetIds:
+          - subnet-06db530baa9be3779
+
+   
+  Consumer:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: dist/handler/consumer
+      Runtime: go1.x
+      Tracing: Active
+      Events:
+        GetEvent:
+          Type: Api
+          Properties:
+            Path: /consumer
+            Method: get
+      VpcConfig:
+        SecurityGroupIds:
+          - sg-0c38fd03efcd3be5d
+        SubnetIds:
+          - subnet-06db530baa9be3779
+
+  LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+        AssumeRolePolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        Path: "/"
+        Policies:
+          -
+            PolicyName: "EC2Permissions"
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                -
+                  Effect: Allow
+                  Action: ec2:DescribeNetworkInterfaces
+                  Resource: "*"
+                -
+                  Effect: Allow
+                  Action: ec2:CreateNetworkInterface
+                  Resource: "*"
+                -
+                  Effect: Allow
+                  Action: ec2:DeleteNetworkInterface
+                  Resource: "*"
+                -
+                  Effect: Allow
+                  Action: ec2:DescribeInstances
+                  Resource: "*"
+                -
+                  Effect: Allow
+                  Action: ec2:AttachNetworkInterface
+                  Resource: "*"
+
+Outputs:
+  URL:
+    Description: URL for HTTPS Endpoint
+    Value:
+      Fn::Join:
+        - ''
+        - - https://
+          - Ref: ServerlessRestApi
+          - ".execute-api."
+          - Ref: AWS::Region
+          - ".amazonaws.com/"
+          - Ref: ServerlessRestApiProdStage
